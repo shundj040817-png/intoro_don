@@ -166,11 +166,11 @@ export default function IntroQuizGame() {
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="font-semibold text-foreground">選択肢</div>
-                <div className="text-2xl font-bold text-secondary">4つ</div>
+                <div className="text-2xl font-bold text-primary">4つ</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="font-semibold text-foreground">制限時間</div>
-                <div className="text-2xl font-bold text-accent">なし</div>
+                <div className="text-2xl font-bold texta-primary">なし</div>
               </div>
             </div>
 
