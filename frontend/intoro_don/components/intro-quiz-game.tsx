@@ -6,78 +6,91 @@ import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Volume2, Play, RotateCcw, Trophy } from "lucide-react"
 
-type Song = {
+// quiz-data.jsonからデータをインポート
+import quizData from "../data/quiz-data.json"
+
+
+/*type Song = {
   id: number
   title: string
   artist: string
   audioUrl: string
   options: string[]
+}*/
+
+// JSONのデータ構造に合わせた型定義
+type Song = {
+  id: number;
+  correctAnswer: string; // JSONの"correctAnswer"に対応
+  artist: string;        // JSONの"artist"に対応
+  musicPath: string;     // JSONの"musicPath"に対応
+  choices: string[];     // JSONの"choices"に対応
+  };
+
+const songs: Song[] = quizData.quizzes.map(q => ({
+  id: q.id,
+  correctAnswer: q.correctAnswer, // q.correctAnswer を使用
+  artist: q.artist,               // q.artist を使用
+  musicPath: q.musicPath,         // q.musicPath を使用
+  choices: q.choices,             // q.choices を使用
+ 
+}));
+
+// Fisher-Yatesアルゴリズムを使って配列をシャッフルする関数
+function shuffleArray(array: any[]) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
 }
 
-const songs: Song[] = [
-  {
-    id: 1,
-    title: "Bohemian Rhapsody",
-    artist: "Queen",
-    audioUrl: "/placeholder.mp3?song=bohemian-rhapsody",
-    options: ["Bohemian Rhapsody", "We Will Rock You", "Don't Stop Me Now", "Somebody to Love"],
-  },
-  {
-    id: 2,
-    title: "Imagine",
-    artist: "John Lennon",
-    audioUrl: "/placeholder.mp3?song=imagine",
-    options: ["Imagine", "Let It Be", "Hey Jude", "Yesterday"],
-  },
-  {
-    id: 3,
-    title: "Billie Jean",
-    artist: "Michael Jackson",
-    audioUrl: "/placeholder.mp3?song=billie-jean",
-    options: ["Billie Jean", "Thriller", "Beat It", "Smooth Criminal"],
-  },
-  {
-    id: 4,
-    title: "Hotel California",
-    artist: "Eagles",
-    audioUrl: "/placeholder.mp3?song=hotel-california",
-    options: ["Hotel California", "Take It Easy", "Desperado", "Life in the Fast Lane"],
-  },
-  {
-    id: 5,
-    title: "Sweet Child O' Mine",
-    artist: "Guns N' Roses",
-    audioUrl: "/placeholder.mp3?song=sweet-child",
-    options: ["Sweet Child O' Mine", "November Rain", "Paradise City", "Welcome to the Jungle"],
-  },
-]
-
 export default function IntroQuizGame() {
-  const [currentSongIndex, setCurrentSongIndex] = useState(0)
+  const [currentSongIndex, setCurrentSongIndex] = useState(0)//useStateは値を保持する関数
   const [score, setScore] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [isAnswered, setIsAnswered] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [gameFinished, setGameFinished] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)//useRefはDOM要素を参照するための関数
 
-  const currentSong = songs[currentSongIndex]
+  // シャッフルされた曲のリストを管理する新しい状態を追加
+  const [shuffledSongs, setShuffledSongs] = useState<Song[]>([]);
+  const [shuffledChoices, setShuffledChoices] = useState<string[]>([]);//シャッフルされた選択肢を保持するためのStateを追加
+
+  useEffect(() => {//useEffectを使ってレンダリング時に一度だけ実行
+  setShuffledSongs(shuffleArray([...songs])); // コンポーネントが最初にマウントされたときにシャッフルを実行
+}, []); // 依存関係リストを空の配列にする
+
+  const currentSong = shuffledSongs[currentSongIndex];
+  
+  // ゲーム開始前は、最初の曲を表示 (シャッフル前)
+  // ここでcurrentSongを定義すると、シャッフルされるまでエラーになるため、
+  // 後でcurrentSongが定義されるように調整する
+ 
   const progress = ((currentSongIndex + 1) / songs.length) * 100
 
   useEffect(() => {
+    // 💡 この条件を追加する
+  if (!currentSong) {
+      return;
+  }
     if (gameStarted && !gameFinished) {
-      audioRef.current = new Audio(currentSong.audioUrl)
+      audioRef.current = new Audio(currentSong.musicPath)
       audioRef.current.addEventListener("ended", () => setIsPlaying(false))
 
       return () => {
         if (audioRef.current) {
+          audioRef.current.removeEventListener("ended", () => {
+          setIsPlaying(false);
+        });
           audioRef.current.pause()
           audioRef.current = null
         }
       }
     }
-  }, [currentSongIndex, gameStarted, gameFinished, currentSong.audioUrl])
+  }, [currentSongIndex, gameStarted, gameFinished, currentSong])
 
   const playIntro = () => {
     if (audioRef.current) {
@@ -86,6 +99,11 @@ export default function IntroQuizGame() {
       setIsPlaying(true)
     }
   }
+  useEffect(() => {
+     if (currentSong) {
+       setShuffledChoices(shuffleArray([...currentSong.choices]));
+     }
+   }, [currentSongIndex, currentSong]);
 
   const handleAnswer = (answer: string) => {
     if (isAnswered) return
@@ -93,7 +111,7 @@ export default function IntroQuizGame() {
     setSelectedAnswer(answer)
     setIsAnswered(true)
 
-    if (answer === currentSong.title) {
+    if (answer === currentSong.correctAnswer) {
       setScore(score + 1)
     }
 
@@ -256,9 +274,9 @@ export default function IntroQuizGame() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {currentSong.options.map((option) => {
-              const isCorrect = option === currentSong.title
-              const isSelected = option === selectedAnswer
+            {currentSong && shuffledChoices.map((choice) => {
+              const isCorrect = choice === currentSong.correctAnswer
+              const isSelected = choice === selectedAnswer
 
               let buttonVariant: "default" | "outline" | "secondary" | "destructive" = "outline"
               let buttonClass = ""
@@ -274,14 +292,14 @@ export default function IntroQuizGame() {
 
               return (
                 <Button
-                  key={option}
+                  key={choice}
                   variant={buttonVariant}
                   size="lg"
                   className={`h-auto py-4 text-lg font-semibold transition-all ${buttonClass}`}
-                  onClick={() => handleAnswer(option)}
+                  onClick={() => handleAnswer(choice)}
                   disabled={isAnswered}
                 >
-                  {option}
+                  {choice}
                   {isAnswered && isCorrect && <span className="ml-2">✓</span>}
                   {isAnswered && isSelected && !isCorrect && <span className="ml-2">✗</span>}
                 </Button>
@@ -293,16 +311,16 @@ export default function IntroQuizGame() {
             <div className="space-y-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div
                 className={`p-4 rounded-lg text-center ${
-                  selectedAnswer === currentSong.title
+                  selectedAnswer === currentSong.correctAnswer
                     ? "bg-primary/10 border-2 border-primary/20"
                     : "bg-destructive/10 border-2 border-destructive/20"
                 }`}
               >
                 <p className="text-lg font-semibold mb-2">
-                  {selectedAnswer === currentSong.title ? "🎉 正解！" : "😢 不正解..."}
+                  {selectedAnswer === currentSong.correctAnswer ? "🎉 正解！" : "😢 不正解..."}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  正解: <span className="font-bold text-foreground">{currentSong.title}</span>
+                  正解: <span className="font-bold text-foreground">{currentSong.correctAnswer}</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
                   アーティスト: <span className="font-semibold text-foreground">{currentSong.artist}</span>

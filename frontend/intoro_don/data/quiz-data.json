@@ -1,0 +1,64 @@
+{
+  "quizzes": [
+    {
+      "id": 1,
+      "musicPath": "/music/SummerDaydream.mp3",
+      "correctAnswer": "サマーデイドリーム",
+      "choices": [
+        "サマーデイドリーム",
+        "ああ、もう。",
+        "魔法が解けたら",
+        "煙"
+      ],
+      "artist": "Saucy Dog"
+    },
+    {
+      "id": 2,
+      "musicPath": "/music/ainokatamari.mp3",
+      "correctAnswer": "愛のかたまり",
+      "choices": [
+        "愛のかたまり",
+        "チェックのワンピース",
+        "硝子の少年",
+        "ハッピーエンド"
+      ],
+      "artist": "Kinki Kids"
+    },
+    {
+      "id": 3,
+      "musicPath": "/music/rememberme.mp3",
+      "correctAnswer": "Remember Me",
+      "choices": [
+        "Remember Me",
+        "人として",
+        "Pretender",
+        "絆ノ奇跡"
+      ],
+      "artist": "Man With A Mission"
+    },
+    {
+      "id": 4,
+      "musicPath": "/music/seaglass.mp3",
+      "correctAnswer": "シーグラス",
+      "choices": [
+        "シーグラス",
+        "結",
+        "いつか",
+        "今更だって僕は言うかな"
+      ],
+      "artist": "Saucy Dog"
+    },
+    {
+      "id": 5,
+      "musicPath": "/music/uroko.mp3",
+      "correctAnswer": "鱗",
+      "choices": [
+        "鱗",
+        "奏（かなで）",
+        "ひまわりの約束",
+        "天体観測"
+      ],
+      "artist": "秦基博"
+    }
+  ]
+}
