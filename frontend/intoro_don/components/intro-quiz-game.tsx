@@ -9,14 +9,8 @@ import { Volume2, Play, RotateCcw, Trophy } from "lucide-react"
 // quiz-data.jsonからデータをインポート
 import quizData from "../data/quiz-data.json"
 
-
-/*type Song = {
-  id: number
-  title: string
-  artist: string
-  audioUrl: string
-  options: string[]
-}*/
+// 回答の制限時間（秒）を定義
+const ANSWER_TIME_LIMIT = 10;
 
 // JSONのデータ構造に合わせた型定義
 type Song = {
@@ -53,6 +47,11 @@ export default function IntroQuizGame() {
   const [gameStarted, setGameStarted] = useState(false)
   const [gameFinished, setGameFinished] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  // 💡 制限時間用の State を追加
+  const [remainingTime, setRemainingTime] = useState(ANSWER_TIME_LIMIT)
+  const timerRef = useRef<NodeJS.Timeout | null>(null); // タイマーIDを保持するための Ref
+  const [hasPlayedIntro, setHasPlayedIntro] = useState(false); // 💡 ボタンを押してから制限時間が動くためのもの
+
   const audioRef = useRef<HTMLAudioElement | null>(null)//useRefはDOM要素を参照するための関数
 
   // シャッフルされた曲のリストを管理する新しい状態を追加
@@ -71,15 +70,70 @@ export default function IntroQuizGame() {
  
   const progress = ((currentSongIndex + 1) / songs.length) * 100
 
+
+  // ----------------------------------------------------
+  // 💡 タイムアウト処理
+  // ----------------------------------------------------
+  const handleTimeout = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    // 選択肢が選択されていない状態として不正解扱いにする
+    setSelectedAnswer("タイムアウト");
+    setIsAnswered(true);
+    // 音楽を停止
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+    // スコアは加算しない
+  }
+  
   useEffect(() => {
-    // 💡 この条件を追加する
+    // 1. タイマー実行の停止条件
+    //    - 回答済み (isAnswered)
+    //    - ゲームが終了した (gameFinished)
+    //    - イントロがまだ再生されていない (hasPlayedIntro)
+    if (isAnswered || gameFinished || !hasPlayedIntro) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+
+    // 2. 残り時間が0になった場合の処理 (タイムアウト)
+    if (remainingTime <= 0) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        // remainingTimeが0になったら、自動でタイムアウト処理を実行
+        if (gameStarted && !isAnswered) {
+             handleTimeout();
+        }
+        return;
+    }
+
+    // 3. 1秒ごとにタイマーを減らす。
+    timerRef.current = setTimeout(() => {
+      // 関数形式で更新 (prevTime - 1) することで、1秒ずつ正確に減らします。
+      setRemainingTime(prevTime => prevTime - 1); 
+    }, 1000);
+    
+    // 4. クリーンアップ
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+    // 依存配列: タイマーの開始/停止条件が変わったときに再実行
+    // remainingTime を含めることで、remainingTime <= 0 のチェックを確実にする
+}, [isAnswered, gameStarted, gameFinished, hasPlayedIntro, remainingTime]); // remainingTime を追加
+
+  useEffect(() => {
   if (!currentSong) {
       return;
   }
     if (gameStarted && !gameFinished) {
       audioRef.current = new Audio(currentSong.musicPath)
-      audioRef.current.addEventListener("ended", () => setIsPlaying(false))
-
+      audioRef.current.addEventListener("ended", () => {
+        setIsPlaying(false);
+      });
       return () => {
         if (audioRef.current) {
           audioRef.current.removeEventListener("ended", () => {
@@ -91,22 +145,30 @@ export default function IntroQuizGame() {
       }
     }
   }, [currentSongIndex, gameStarted, gameFinished, currentSong])
-
-  const playIntro = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play()
-      setIsPlaying(true)
-    }
-  }
+  
   useEffect(() => {
      if (currentSong) {
        setShuffledChoices(shuffleArray([...currentSong.choices]));
      }
    }, [currentSongIndex, currentSong]);
 
+   const playIntro = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play()
+      setIsPlaying(true)
+      // 💡 イントロを再生したので、タイマーを動かし始めるためのフラグを立てる
+        setHasPlayedIntro(true);
+    }
+  }
+
   const handleAnswer = (answer: string) => {
     if (isAnswered) return
+
+    // 💡 タイマーを停止
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
 
     setSelectedAnswer(answer)
     setIsAnswered(true)
@@ -127,6 +189,10 @@ export default function IntroQuizGame() {
       setSelectedAnswer(null)
       setIsAnswered(false)
       setIsPlaying(false)
+      // ✅ hasPlayedIntro をリセット
+      setHasPlayedIntro(false);
+      // 💡 次の問題へ進む際にタイマーをリセット
+      setRemainingTime(ANSWER_TIME_LIMIT);
     } else {
       setGameFinished(true)
     }
@@ -140,6 +206,12 @@ export default function IntroQuizGame() {
     setGameStarted(false)
     setGameFinished(false)
     setIsPlaying(false)
+    // ✅ hasPlayedIntro をリセット
+    setHasPlayedIntro(false);
+    // 💡 ゲームリセット時にもタイマーをリセット
+    setRemainingTime(ANSWER_TIME_LIMIT); 
+    // 💡 シャッフルも再実行
+    setShuffledSongs(shuffleArray([...songs]));
   }
 
   if (!gameStarted) {
@@ -246,6 +318,36 @@ export default function IntroQuizGame() {
           <Progress value={progress} className="h-2" />
         </div>
 
+        {/* ---------------------------------------------------- */}
+        {/* 💡 残り時間の表示 */}
+        {/* ---------------------------------------------------- */}
+
+<div className="text-center">
+    {currentSong && !isAnswered && (
+        <>
+            {/* イントロ再生前（hasPlayedIntroがfalse）の表示 */}
+            {!hasPlayedIntro && (
+                <div className="text-3xl font-bold text-muted-foreground">
+                    イントロを聴いて開始
+                </div>
+            )}
+            
+            {/* イントロ再生後（hasPlayedIntroがtrue）のタイマー表示 */}
+            {hasPlayedIntro && (
+                // isPlaying の条件がなくなり、再生中も残り時間が表示される
+                <div className={`text-3xl font-bold transition-colors ${remainingTime <= 5 ? 'text-destructive animate-pulse' : 'text-primary'}`}>
+                    残り時間: {remainingTime}秒
+                </div>
+            )}
+        </>
+    )}
+    {isAnswered && (
+        <div className="text-3xl font-bold text-muted-foreground">
+            解答済み
+        </div>
+    )}
+</div>
+
         <div className="space-y-6">
           <div className="text-center space-y-4 py-8">
             <h2 className="text-2xl md:text-3xl font-bold text-balance">この曲のタイトルは？</h2>
@@ -255,7 +357,7 @@ export default function IntroQuizGame() {
               variant={isPlaying ? "secondary" : "default"}
               className="w-48 h-48 rounded-full text-lg"
               onClick={playIntro}
-              disabled={isAnswered}
+              disabled={isAnswered || isPlaying} // 💡 回答済み/再生中は無効
             >
               <div className="flex flex-col items-center gap-3">
                 {isPlaying ? (
@@ -297,7 +399,7 @@ export default function IntroQuizGame() {
                   size="lg"
                   className={`h-auto py-4 text-lg font-semibold transition-all ${buttonClass}`}
                   onClick={() => handleAnswer(choice)}
-                  disabled={isAnswered}
+                  disabled={isAnswered} // 💡 回答済みは無効
                 >
                   {choice}
                   {isAnswered && isCorrect && <span className="ml-2">✓</span>}
